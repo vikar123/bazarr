@@ -242,17 +242,20 @@ class TableCustomScoreProfiles(BaseModel):
     name = TextField(null=True)
     media = TextField(null=True)
     score = IntegerField(null=True)
+    enabled = BooleanField(default=True)
 
     class Meta:
         table_name = 'table_custom_score_profiles'
 
 
 class TableCustomScoreProfileConditions(BaseModel):
+    id = AutoField()
     profile_id = ForeignKeyField(TableCustomScoreProfiles, to_field="id")
     type = TextField(null=True) # provider, uploader, regex, etc
     value = TextField(null=True) # opensubtitles, jane_doe, [a-z], etc
     required = BooleanField(default=False)
     negate = BooleanField(default=False)
+    enabled = BooleanField(default=True)
 
     class Meta:
         table_name = 'table_custom_score_profile_conditions'
@@ -329,7 +332,10 @@ def migrate_db():
         migrator.add_column('table_history_movie', 'provider', TextField(null=True)),
         migrator.add_column('table_history_movie', 'score', TextField(null=True)),
         migrator.add_column('table_history_movie', 'subs_id', TextField(null=True)),
-        migrator.add_column('table_history_movie', 'subtitles_path', TextField(null=True))
+        migrator.add_column('table_history_movie', 'subtitles_path', TextField(null=True)),
+        migrator.add_column('table_custom_score_profiles', 'enabled', BooleanField(default=True)),
+        migrator.add_column('table_custom_score_profile_conditions', 'enabled', BooleanField(default=True)),
+        migrator.add_column('table_custom_score_profile_conditions', 'id', AutoField(null=True))
     )
 
 
