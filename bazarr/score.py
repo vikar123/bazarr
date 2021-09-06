@@ -82,7 +82,7 @@ class CustomScoreProfile:
     table = profiles_table
     conditions_table = conditions_table
 
-    def __init__(self, id=None, name=None, score=0, media=None):
+    def __init__(self, id=None, name=None, score=0, media=None, **kwargs):
         self.id = id
         self.name = name or "N/A"
         self.score = score
@@ -181,7 +181,11 @@ class Score:
         self.data.update(self.defaults)
 
     def update(self, **kwargs):
-        self.data.update(kwargs)
+        # Must be implemented in subclass
+        pass
+
+    def update_from_config(self):
+        self.update(**get_settings())
 
     @classmethod
     def from_config(cls, **kwargs):
