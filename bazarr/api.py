@@ -29,7 +29,7 @@ import logging
 from database import get_exclusion_clause, get_profiles_list, get_desired_languages, get_profile_id_name, \
     get_audio_profile_languages, update_profile_id_list, convert_list_to_clause, TableEpisodes, TableShows, \
     TableMovies, TableSettingsLanguages, TableSettingsNotifier, TableLanguagesProfiles, TableHistory, \
-    TableHistoryMovie, TableBlacklist, TableBlacklistMovie
+    TableHistoryMovie, TableBlacklist, TableBlacklistMovie, TableCustomScoreProfiles, TableCustomScoreProfileConditions
 from helper import path_mappings
 from get_languages import language_from_alpha2, language_from_alpha3, alpha2_from_alpha3, alpha3_from_alpha2
 from get_subtitle import download_subtitle, series_download_subtitles, manual_search, manual_download_subtitle, \
@@ -394,6 +394,81 @@ class Languages(Resource):
         for item in result:
             item['enabled'] = item['enabled'] == 1
         return jsonify(result)
+
+
+class ScoreProfiles(Resource):
+    _profiles = TableCustomScoreProfiles
+    _conditions = TableCustomScoreProfileConditions
+
+    @authenticate
+    def get(self):
+        """Return a JSON list of nested score profile dictionaries.
+        Example (May be removed later):
+        {
+            "score_profiles":
+                [
+                      {
+                        "conditions": [
+                          {
+                            "id": 1,
+                            "negate": false,
+                            "profile_id": 1,
+                            "required": true,
+                            "type": "provider",
+                            "value": "argenteam"
+                          }
+                        ],
+                        "id": 1,
+                        "media": "movies",
+                        "name": "test_profile",
+                        "score": 10
+                      }
+                ]
+        }
+        """
+        profiles = self._get_profiles()
+        for profile in profiles:
+            profile["conditions"] = self._get_conditions(profile["id"])
+
+        return jsonify({"score_profiles": profiles})
+
+    @authenticate
+    def post(self):
+        in_db_profile_ids = [item["id"] for item in self._get_profiles()]
+        profiles = request.form.getlist('score_profiles')
+
+        seen_profile_ids = []
+        for profile in profiles:
+            temp = json.loads(profile)
+            saved_conditions = temp["conditions"]
+
+            del temp["conditions"]
+            self._profiles.replace(**temp).execute() # safe
+
+            seen_profile_ids.append(int(temp["id"]))
+            in_db_cond_ids = [item["id"] for item in self._get_conditions(temp["id"])]
+
+            seen_condition_ids = []
+            for condition in saved_conditions:
+                condition = json.loads(condition)
+                self._conditions.replace(**condition).execute() # safe
+                seen_condition_ids.append(int(condition["id"]))
+
+            # Delete removed condition ids
+            for in_db in in_db_cond_ids:
+                if in_db not in seen_condition_ids:
+                    self._conditions.delete().where(self._conditions.id==in_db).execute()
+
+        # Delete removed profile ids
+        for in_db in in_db_profile_ids:
+            if in_db not in seen_profile_ids:
+                self._profiles.delete().where(self._profiles.id==in_db).execute()
+
+    def _get_conditions(self, profile_id):
+        return list(self._conditions.select().where(self._conditions.profile_id==profile_id).dicts())
+
+    def _get_profiles(self):
+        return list(self._profiles.select().order_by(self._profiles.name).dicts())
 
 
 class LanguagesProfiles(Resource):
@@ -2155,6 +2230,7 @@ api.add_resource(SystemReleases, '/system/releases')
 api.add_resource(SystemSettings, '/system/settings')
 api.add_resource(Languages, '/system/languages')
 api.add_resource(LanguagesProfiles, '/system/languages/profiles')
+api.add_resource(ScoreProfiles, '/system/score/profiles')
 api.add_resource(Notifications, '/system/notifications')
 
 api.add_resource(Subtitles, '/subtitles')
