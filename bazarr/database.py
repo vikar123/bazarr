@@ -86,12 +86,14 @@ class TableEpisodes(BaseModel):
     sonarrEpisodeId = IntegerField(unique=True)
     sonarrSeriesId = IntegerField()
     subtitles = TextField(null=True)
+    subtitles_extended = TextField(null=True)
     title = TextField()
     video_codec = TextField(null=True)
 
     class Meta:
         table_name = 'table_episodes'
         primary_key = False
+
 
 
 class TableHistory(BaseModel):
@@ -164,6 +166,7 @@ class TableMovies(BaseModel):
     sceneName = TextField(null=True)
     sortTitle = TextField(null=True)
     subtitles = TextField(null=True)
+    subtitles_extended = TextField(null=True)
     tags = TextField(null=True)
     title = TextField()
     tmdbId = TextField(unique=True)

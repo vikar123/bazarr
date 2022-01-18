@@ -64,6 +64,10 @@ function getIdAndType(item: SupportType): [number, "episode" | "movie"] {
   }
 }
 
+function submodalReftrackSync(subindex: number) {
+  return `reftrack_index(0:s:${subindex})`;
+}
+
 function submodProcessFrameRate(from: number, to: number) {
   return `change_FPS(from=${from},to=${to})`;
 }
@@ -293,6 +297,51 @@ const TranslateModal: FunctionComponent<BaseModalProps & ToolModalProps> = ({
   );
 };
 
+const AdvancedSyncModal: FunctionComponent<BaseModalProps & ToolModalProps> = (
+  props
+) => {
+  const { process, ...modal } = props;
+
+  const [subindex, setSubindex] = useState<Nullable<number>>(null);
+
+  const canSave = subindex !== null;
+
+  const submit = useCallback(() => {
+    if (canSave) {
+      const action = submodalReftrackSync(subindex);
+      process(action);
+    }
+  }, [canSave, subindex, process]);
+
+  const footer = useMemo(
+    () => (
+      <Button disabled={!canSave} onClick={submit}>
+        Save
+      </Button>
+    ),
+    [submit, canSave]
+  );
+
+  return (
+    <BaseModal title="Sync subtitle with reference track in video file" footer={footer} {...modal}>
+      <InputGroup className="px-2">
+        <Form.Control
+          placeholder="Example: 0 - Where index s:0 is the first subtitle track"
+          type="number"
+          onChange={(e) => {
+            const value = parseFloat(e.currentTarget.value);
+            if (isNaN(value)) {
+              setSubindex(null);
+            } else {
+              setSubindex(value);
+            }
+          }}
+        ></Form.Control>
+      </InputGroup>
+    </BaseModal>
+  );
+};
+
 const TaskGroupName = "Modifying Subtitles";
 
 const CanSelectSubtitle = (item: TableColumnType) => {
@@ -392,6 +441,29 @@ const STM: FunctionComponent<BaseModalProps> = ({ ...props }) => {
     [payload]
   );
 
+  const subtitleIndexdata = useMemo<TableColumnType[]>(
+    () =>
+      payload?.flatMap((item) => {
+        const [id, type] = getIdAndType(item);
+        return item.subtitles.flatMap((v) => {
+          if (v.path !== null) {
+            return [
+              {
+                id,
+                type,
+                language: v.code2,
+                path: v.path,
+                _language: v,
+              },
+            ];
+          } else {
+            return [];
+          }
+        });
+      }) ?? [],
+    [payload]
+  );
+
   const plugins = [useRowSelect, useCustomSelection];
 
   const footer = useMemo(
@@ -444,6 +516,9 @@ const STM: FunctionComponent<BaseModalProps> = ({ ...props }) => {
           <Dropdown.Item onSelect={() => showModal("adjust-times")}>
             <ActionButtonItem icon={faClock}>Adjust Times</ActionButtonItem>
           </Dropdown.Item>
+          <Dropdown.Item onSelect={() => showModal("reftrack-sync")}>
+            <ActionButtonItem icon={faPlay}>Reftrack Sync</ActionButtonItem>
+          </Dropdown.Item>
           <Dropdown.Item onSelect={() => showModal("translate-sub")}>
             <ActionButtonItem icon={faLanguage}>Translate</ActionButtonItem>
           </Dropdown.Item>
@@ -475,6 +550,10 @@ const STM: FunctionComponent<BaseModalProps> = ({ ...props }) => {
         process={process}
         modalKey="adjust-times"
       ></AdjustTimesModal>
+      <AdvancedSyncModal
+        process={process}
+        modalKey="reftrack-sync"
+      ></AdvancedSyncModal>
       <TranslateModal
         process={process}
         modalKey="translate-sub"
